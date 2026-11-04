@@ -1,15 +1,1101 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <title>Ring Şebeke Simülasyonu</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #0b0f1a; color: #fff; }
-        h1 { color: #ffc53d; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Çift Beslemeli Ring Şebeke Simülasyonu — Interlock Korumalı</title>
+  <style>
+    :root {
+      --app-bg: #0b0f1a;
+      --scene-bg: #0d1322;
+      --panel-bg: #111a2e;
+      --panel-line: #1f2b47;
+      --text: #e9eef8;
+      --text-dim: #9aa7c2;
+      --text-faint: #66738f;
+      --accent: #ffc53d;
+      --good: #3ddc97;
+      --bad: #ff6b6b;
+      --info: #6cb0ff;
+      --card-body: #151e33;
+      --card-body-on: #243158;
+      --card-edge: #2b3a5c;
+      --casing: #2e3d63;
+      --track: #0a101f;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--app-bg);
+      color: var(--text);
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 12px;
+      gap: 10px;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-line);
+      border-radius: 14px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .title-box h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
+
+    .title-box p {
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-top: 2px;
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      justify-content: center;
+      min-width: 280px;
+    }
+
+    .status-badge {
+      background: rgba(16, 24, 44, 0.9);
+      border: 1px solid var(--info);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--info);
+      text-align: center;
+      transition: all 0.25s ease;
+      max-width: 650px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-badge.ok {
+      border-color: var(--good);
+      color: var(--good);
+    }
+
+    .status-badge.error {
+      border-color: var(--bad);
+      color: var(--bad);
+      background: rgba(37, 23, 34, 0.95);
+      animation: pulseError 0.7s infinite alternate;
+    }
+
+    @keyframes pulseError {
+      from { transform: scale(1); }
+      to { transform: scale(1.02); }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #16203a;
+      color: var(--text);
+      border: 1px solid #2a3a5f;
+      border-radius: 9px;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover {
+      background: #1e2a4a;
+      border-color: #3d5290;
+    }
+
+    button:active {
+      background: #131d38;
+      transform: translateY(1px);
+    }
+
+    button.danger {
+      color: #ff9a9a;
+      background: #251722;
+      border-color: #55303c;
+    }
+    button.danger:hover {
+      background: #331f2e;
+      border-color: #7a4553;
+    }
+
+    /* VIEWPORT CONTAINER */
+    .viewport-container {
+      flex: 1;
+      position: relative;
+      background: var(--scene-bg);
+      border: 1px solid var(--panel-line);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    /* FOOTER */
+    footer {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-line);
+      border-radius: 14px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-dim);
+      flex-wrap: wrap;
+    }
+
+    .chips {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      background: #0e1526;
+      border: 1px solid var(--panel-line);
+      border-radius: 9px;
+      padding: 4px 10px;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .summary {
+      color: var(--text-faint);
+      font-weight: 600;
+    }
+  </style>
 </head>
 <body>
-    <h1>Ring Şebeke Simülasyonu</h1>
-    <p>Bu proje PyQt6 kullanılarak geliştirilmiş çift beslemeli bir ring şebeke simülasyonudur.</p>
+
+  <!-- HEADER -->
+  <header>
+    <div class="title-box">
+      <h1>Çift Beslemeli Ring Şebeke Simülasyonu</h1>
+      <p>Interlock korumalı · şaltere tıkla: konum değiştir · tekerlek: yakınlaştır · sürükle: kaydır · çift tık: sığdır</p>
+    </div>
+
+    <div class="header-center">
+      <div id="statusBadge" class="status-badge">
+        Şebeke aktif — interlock koruması devrede (S06 Giriş şalterleri başlangıçta açık).
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button onclick="resetFit()">Sığdır</button>
+      <button onclick="resetNetwork()">Başlangıç Durumu</button>
+      <button class="danger" onclick="closeAllSwitches()">Tümünü Kes</button>
+    </div>
+  </header>
+
+  <!-- VIEWPORT -->
+  <div class="viewport-container" id="viewport">
+    <canvas id="scadaCanvas"></canvas>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="chips">
+      <div class="chip"><div class="chip-dot" style="background:var(--accent);"></div> Enerjili hat</div>
+      <div class="chip"><div class="chip-dot" style="background:#3a4a6e;"></div> Enerjisiz hat</div>
+      <div class="chip"><div class="chip-dot" style="background:var(--good);"></div> Şalter iletimde</div>
+      <div class="chip"><div class="chip-dot" style="background:var(--bad);"></div> Şalter kesik</div>
+      <div class="chip"><div class="chip-dot" style="background:var(--info);"></div> Hücre</div>
+    </div>
+    <div class="summary" id="summaryText">
+      Enerjili trafo: 0/4 • Enerjili hücre: 0/20 • İletimde şalter: 38/46
+    </div>
+  </footer>
+
+  <!-- SİMÜLASYON MOTORU -->
+  <script>
+    // =========================================================================
+    // 0. GEOMETRİ VE TEMA SABİTLERİ
+    // =========================================================================
+    const ST_W = 160, ST_H = 96;
+    const Y1 = 210, Y2 = 540;
+    const ST_LEFT_CX = 260;
+    const CELL_PITCH = 196;
+    const G0_X = 420;
+    const N_OFF = 74, C_OFF = 144;
+    const CELL_NUMBERS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+    const last_c_x = G0_X + CELL_PITCH * (CELL_NUMBERS.length - 1) + C_OFF;
+    const ST_RIGHT_CX = last_c_x + 15 + 42 + ST_W / 2;
+
+    const V_BOUND_LEFT = ST_LEFT_CX - ST_W/2 - 240;
+    const V_BOUND_RIGHT = ST_RIGHT_CX + ST_W/2 + 240;
+    const V_BOUND_TOP = Y1 - 100;
+    const V_BOUND_BOTTOM = Y2 + 100;
+    const V_WIDTH = V_BOUND_RIGHT - V_BOUND_LEFT;
+    const V_HEIGHT = V_BOUND_BOTTOM - V_BOUND_TOP;
+
+    const canvas = document.getElementById("scadaCanvas");
+    const ctx = canvas.getContext("2d");
+    const viewport = document.getElementById("viewport");
+
+    let clockT = 0;
+    let scale = 1.0;
+    let panX = 0, panY = 0;
+    let isPanning = false;
+    let startPanX = 0, startPanY = 0;
+    let userView = false;
+
+    // =========================================================================
+    // 1. VERİ YAPILARI (İSTASYONLAR, HÜCRELER, ŞALTERLER, KENARLAR)
+    // =========================================================================
+    const st1 = { id: "st1", x: ST_LEFT_CX, y: Y1, label: "Darıca Sahil\nTEİAŞ Giriş H1", isEnergized: false, energy: 0, w: ST_W, h: ST_H };
+    const st2 = { id: "st2", x: ST_RIGHT_CX, y: Y1, label: "Depo Sahası\nTEİAŞ Giriş H1", isEnergized: false, energy: 0, w: ST_W, h: ST_H };
+    const st3 = { id: "st3", x: ST_RIGHT_CX, y: Y2, label: "Depo Sahası\nTEİAŞ Giriş H2", isEnergized: false, energy: 0, w: ST_W, h: ST_H };
+    const st4 = { id: "st4", x: ST_LEFT_CX, y: Y2, label: "Darıca Sahil\nTEİAŞ Giriş H2", isEnergized: false, energy: 0, w: ST_W, h: ST_H };
+    const stations = [st1, st2, st3, st4];
+
+    const cellNodes = [];
+    const cellSwitches = [];
+    const cellOf = {};
+    const edges = [];
+
+    const rowsConfig = [
+      { rowName: "H1", y: Y1, stLeft: st1, stRight: st2 },
+      { rowName: "H2", y: Y2, stLeft: st4, stRight: st3 },
+    ];
+
+    rowsConfig.forEach(({ rowName, y, stLeft, stRight }) => {
+      const cells = [];
+      CELL_NUMBERS.forEach((num, k) => {
+        const gx = G0_X + CELL_PITCH * k;
+        const tag = `S${num < 10 ? '0' + num : num} ${rowName}`;
+
+        const g = {
+          name: `${tag} Giriş`,
+          x: gx, y: y,
+          isOpen: (num !== 6),
+          isVertical: false,
+          labelSide: "bottom",
+          anim: (num !== 6 ? 1 : 0),
+          hover: 0, flash: 0, pulse: 0
+        };
+
+        const c = {
+          name: `${tag} Çıkış`,
+          x: gx + C_OFF, y: y,
+          isOpen: true,
+          isVertical: false,
+          labelSide: "top",
+          anim: 1,
+          hover: 0, flash: 0, pulse: 0
+        };
+
+        const n = {
+          id: `${rowName}_${num}`,
+          label: tag,
+          x: gx + N_OFF, y: y,
+          isEnergized: false, energy: 0,
+          w: 84, h: 52, compact: true
+        };
+
+        cells.push({ g, n, c });
+        cellNodes.push(n);
+        cellSwitches.push(g, c);
+        cellOf[`${rowName}_${num}`] = { g, n, c };
+      });
+
+      let prevNode = stLeft;
+      let prevX = stLeft.x;
+
+      cells.forEach((cell, k) => {
+        const nextX = cell.n.x;
+        const edgeSwitches = [{ sw: cell.g, frac: (cell.g.x - prevX) / (nextX - prevX) }];
+        if (k > 0) {
+          const prevC = cells[k - 1].c;
+          edgeSwitches.unshift({ sw: prevC, frac: (prevC.x - prevX) / (nextX - prevX) });
+        }
+
+        edges.push({
+          p1: { x: prevX, y },
+          p2: { x: nextX, y },
+          a: prevNode,
+          b: cell.n,
+          switches: edgeSwitches,
+          aFill: 0, bFill: 0,
+          aTarget: 0, bTarget: 0
+        });
+
+        prevNode = cell.n;
+        prevX = nextX;
+      });
+
+      const lastSw = cells[cells.length - 1].c;
+      edges.push({
+        p1: { x: prevX, y },
+        p2: { x: stRight.x, y },
+        a: prevNode,
+        b: stRight,
+        switches: [{ sw: lastSw, frac: (lastSw.x - prevX) / (stRight.x - prevX) }],
+        aFill: 0, bFill: 0,
+        aTarget: 0, bTarget: 0
+      });
+    });
+
+    const swKuplDepo = {
+      name: "Depo Sahası\nKuplaj",
+      x: ST_RIGHT_CX, y: (Y1 + Y2) / 2,
+      isOpen: false,
+      isVertical: true,
+      labelSide: "right",
+      anim: 0, hover: 0, flash: 0, pulse: 0
+    };
+
+    const swKuplDarica = {
+      name: "Darıca Sahil\nKuplaj",
+      x: ST_LEFT_CX, y: (Y1 + Y2) / 2,
+      isOpen: false,
+      isVertical: true,
+      labelSide: "left",
+      anim: 0, hover: 0, flash: 0, pulse: 0
+    };
+
+    const couplingSwitches = [swKuplDepo, swKuplDarica];
+
+    [
+      { sw: swKuplDepo, stTop: st2, stBottom: st3 },
+      { sw: swKuplDarica, stTop: st1, stBottom: st4 }
+    ].forEach(({ sw, stTop, stBottom }) => {
+      edges.push({
+        p1: { x: stTop.x, y: stTop.y + ST_H / 2 },
+        p2: { x: stBottom.x, y: stBottom.y - ST_H / 2 },
+        a: stTop,
+        b: stBottom,
+        switches: [{ sw, frac: 0.5 }],
+        aFill: 0, bFill: 0,
+        aTarget: 0, bTarget: 0
+      });
+    });
+
+    const extY = [Y1, Y1, Y2, Y2];
+    const extSt = [st1, st2, st3, st4];
+    const extNames = [
+      "Tuzla TEİAŞ H1 Giriş",
+      "OSB TEİAŞ H1 Giriş",
+      "OSB TEİAŞ H2 Giriş",
+      "Tuzla TEİAŞ H2 Giriş"
+    ];
+
+    const extSwitches = [];
+    const extLines = [];
+
+    extSt.forEach((st, i) => {
+      const y = extY[i];
+      let pOut, pIn;
+      if (st.x < (ST_LEFT_CX + ST_RIGHT_CX) / 2) {
+        pOut = { x: st.x - ST_W / 2 - 200, y };
+        pIn = { x: st.x - ST_W / 2 - 14, y };
+      } else {
+        pOut = { x: st.x + ST_W / 2 + 200, y };
+        pIn = { x: st.x + ST_W / 2 + 14, y };
+      }
+
+      const sw = {
+        name: extNames[i],
+        x: (pOut.x + pIn.x) / 2, y,
+        isOpen: false,
+        isVertical: false,
+        labelSide: "bottom",
+        anim: 0, hover: 0, flash: 0, pulse: 0
+      };
+
+      const line = {
+        p1: pOut, p2: pIn,
+        aTarget: 0, bTarget: 0,
+        aFill: 0, bFill: 0
+      };
+
+      extSwitches.push(sw);
+      extLines.push(line);
+    });
+
+    const allNodes = [...stations, ...cellNodes];
+    const allSwitches = [...extSwitches, ...couplingSwitches, ...cellSwitches];
+    const allLines = [...extLines, ...edges];
+
+    const initialStates = new Map();
+    allSwitches.forEach(sw => initialStates.set(sw, sw.isOpen));
+
+    // =========================================================================
+    // 2. INTERLOCK KONTROLÜ
+    // =========================================================================
+    function hasParalleling(overrides = null) {
+      function conducts(sw) {
+        if (overrides && overrides.has(sw)) return overrides.get(sw);
+        return sw.isOpen;
+      }
+
+      const sources = new Map();
+      allNodes.forEach(node => sources.set(node, new Set()));
+
+      extSwitches.forEach((sw, i) => {
+        if (conducts(sw)) {
+          sources.get(stations[i]).add(`KAYNAK_${i + 1}`);
+        }
+      });
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        edges.forEach(edge => {
+          if (edge.switches.some(({ sw }) => !conducts(sw))) return;
+
+          const sa = sources.get(edge.a);
+          const sb = sources.get(edge.b);
+          const merged = new Set([...sa, ...sb]);
+          if (merged.size !== sa.size || merged.size !== sb.size) {
+            merged.forEach(s => { sa.add(s); sb.add(s); });
+            changed = true;
+          }
+        });
+      }
+
+      for (let s of sources.values()) {
+        if (s.size > 1) return true;
+      }
+      return false;
+    }
+
+    function canToggleSwitch(targetSwitch) {
+      const overrides = new Map();
+      overrides.set(targetSwitch, !targetSwitch.isOpen);
+      return !hasParalleling(overrides);
+    }
+
+    // =========================================================================
+    // 3. ŞALTER ETKİLEŞİMİ (MANUEL & INTERLOCK KORUMALI)
+    // =========================================================================
+    function requestToggle(sw) {
+      if (!canToggleSwitch(sw)) {
+        sw.flash = 1.0;
+        setStatus(`INTERLOCK ENGELİ — ${sw.name.replace("\n", " ")} (kaynak çakışması riski!)`, "error");
+        return true;
+      }
+
+      applyToggle(sw);
+      return true;
+    }
+
+    function applyToggle(sw) {
+      sw.isOpen = !sw.isOpen;
+      sw.pulse = 1.0;
+      const state = sw.isOpen ? "İLETİMDE (kapalı devre)" : "KESİK (açık devre)";
+      setStatus(`${sw.name.replace("\n", " ")} → ${state}`, sw.isOpen ? "ok" : "info");
+    }
+
+    function closeAllSwitches() {
+      allSwitches.forEach(sw => sw.isOpen = false);
+      setStatus("Tüm şalterler kesik (açık devre) konuma alındı.", "info");
+    }
+
+    function resetNetwork() {
+      allSwitches.forEach(sw => {
+        sw.isOpen = initialStates.get(sw);
+      });
+      resetFit();
+      setStatus("Başlangıç konfigürasyonu geri yüklendi.", "ok");
+    }
+
+    function setStatus(text, level = "info") {
+      const el = document.getElementById("statusBadge");
+      el.textContent = text;
+      el.className = `status-badge ${level}`;
+    }
+
+    // =========================================================================
+    // 4. SİMÜLASYON MOTORU (BFS GÜÇ AKIŞI & HATLARA ENERJİ DOLUMU)
+    // =========================================================================
+    function updateSimulation() {
+      allNodes.forEach(node => node.isEnergized = false);
+      allLines.forEach(line => {
+        line.aTarget = 0.0;
+        line.bTarget = 0.0;
+      });
+
+      extSwitches.forEach((sw, i) => {
+        if (sw.isOpen) {
+          stations[i].isEnergized = true;
+          extLines[i].aTarget = 1.0;
+        } else {
+          extLines[i].aTarget = 0.5;
+        }
+      });
+
+      const queue = stations.filter(st => st.isEnergized);
+      const visited = new Set();
+
+      while (queue.length > 0) {
+        const node = queue.shift();
+        if (visited.has(node)) continue;
+        visited.add(node);
+
+        edges.forEach(edge => {
+          if (node !== edge.a && node !== edge.b) return;
+          const fromA = (node === edge.a);
+          const openFracs = edge.switches.filter(({ sw }) => !sw.isOpen).map(({ frac }) => frac);
+
+          if (openFracs.length > 0) {
+            if (fromA) {
+              edge.aTarget = Math.max(edge.aTarget, Math.min(...openFracs));
+            } else {
+              edge.bTarget = Math.max(edge.bTarget, 1.0 - Math.max(...openFracs));
+            }
+          } else {
+            if (fromA) edge.aTarget = 1.0;
+            else edge.bTarget = 1.0;
+
+            const other = fromA ? edge.b : edge.a;
+            if (!other.isEnergized) {
+              other.isEnergized = true;
+              queue.push(other);
+            }
+          }
+        });
+      }
+
+      allLines.forEach(line => {
+        if (line.aTarget + line.bTarget > 1.001) {
+          if (line.aTarget >= line.bTarget) line.bTarget = 0.0;
+          else line.aTarget = 0.0;
+        }
+      });
+
+      const nSt = stations.filter(st => st.isEnergized).length;
+      const nCell = cellNodes.filter(n => n.isEnergized).length;
+      const nSw = allSwitches.filter(sw => sw.isOpen).length;
+      document.getElementById("summaryText").textContent =
+        `Enerjili trafo: ${nSt}/4   •   Enerjili hücre: ${nCell}/20   •   İletimde şalter: ${nSw}/${allSwitches.length}`;
+    }
+
+    // =========================================================================
+    // 5. CANVAS RENDER MOTORU (YÜKSEK ÇÖZÜNÜRLÜK & AKICI ANİMASYON)
+    // =========================================================================
+    function approach(val, target, step) {
+      if (val < target) return Math.min(target, val + step);
+      if (val > target) return Math.max(target, val - step);
+      return val;
+    }
+
+    function mixColor(c1, c2, t) {
+      t = Math.max(0, Math.min(1, t));
+      const rgb1 = hexToRgb(c1);
+      const rgb2 = hexToRgb(c2);
+      const r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * t);
+      const g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * t);
+      const b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * t);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function hexToRgb(hex) {
+      hex = hex.replace("#", "");
+      if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+      return {
+        r: parseInt(hex.substring(0, 2), 16),
+        g: parseInt(hex.substring(2, 4), 16),
+        b: parseInt(hex.substring(4, 6), 16)
+      };
+    }
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = viewport.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function resetFit() {
+      const rect = viewport.getBoundingClientRect();
+      const scaleX = rect.width / (V_WIDTH + 80);
+      const scaleY = rect.height / (V_HEIGHT + 80);
+      scale = Math.min(scaleX, scaleY);
+      panX = (rect.width - (V_BOUND_RIGHT + V_BOUND_LEFT) * scale) / 2;
+      panY = (rect.height - (V_BOUND_BOTTOM + V_BOUND_TOP) * scale) / 2;
+      userView = false;
+    }
+
+    window.addEventListener("resize", () => { resizeCanvas(); if (!userView) resetFit(); });
+
+    function tick(dt) {
+      clockT += dt;
+
+      allNodes.forEach(node => {
+        node.energy = approach(node.energy, node.isEnergized ? 1.0 : 0.0, dt * 3.2);
+      });
+
+      allLines.forEach(line => {
+        line.aFill = approach(line.aFill, line.aTarget, 2.8 * dt);
+        line.bFill = approach(line.bFill, line.bTarget, 2.8 * dt);
+      });
+
+      allSwitches.forEach(sw => {
+        sw.anim = approach(sw.anim, sw.isOpen ? 1.0 : 0.0, dt * 9.0);
+        sw.hover = approach(sw.hover, sw._hovering ? 1.0 : 0.0, dt * 12.0);
+        sw.flash = Math.max(0.0, sw.flash - dt * 1.4);
+        sw.pulse = Math.max(0.0, sw.pulse - dt * 4.0);
+      });
+    }
+
+    function animate() {
+      const dt = 0.016;
+      updateSimulation();
+      tick(dt);
+      render();
+      requestAnimationFrame(animate);
+    }
+
+    function render() {
+      const w = viewport.clientWidth;
+      const h = viewport.clientHeight;
+
+      ctx.save();
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.fillStyle = "#1c2547";
+      for (let x = 0; x < w; x += 26) {
+        for (let y = 0; y < h; y += 26) {
+          ctx.beginPath();
+          ctx.arc(x + 13, y + 13, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.translate(panX, panY);
+      ctx.scale(scale, scale);
+
+      ctx.fillStyle = "#66738f";
+      ctx.font = "bold 13px 'Segoe UI', sans-serif";
+      ctx.fillText("H1 HATTI", V_BOUND_LEFT + 20, Y1 - 64);
+      ctx.fillText("H2 HATTI", V_BOUND_LEFT + 20, Y2 - 64);
+
+      allLines.forEach(line => renderLine(line));
+      allNodes.forEach(node => renderNode(node));
+      allSwitches.forEach(sw => renderSwitch(sw));
+
+      ctx.restore();
+    }
+
+    function renderLine(line) {
+      const p1 = line.p1, p2 = line.p2;
+      const thickness = 10;
+
+      ctx.strokeStyle = "#2e3d63";
+      ctx.lineWidth = thickness;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#0a101f";
+      ctx.lineWidth = Math.max(1, thickness - 3);
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+
+      if (line.aFill > 0.001) {
+        paintEnergy(p1, p2, 0.0, line.aFill, +1, thickness);
+      }
+      if (line.bFill > 0.001) {
+        paintEnergy(p1, p2, 1.0 - line.bFill, 1.0, -1, thickness);
+      }
+    }
+
+    function paintEnergy(p1, p2, s, e, dir, thickness) {
+      const sx = p1.x + (p2.x - p1.x) * s;
+      const sy = p1.y + (p2.y - p1.y) * s;
+      const ex = p1.x + (p2.x - p1.x) * e;
+      const ey = p1.y + (p2.y - p1.y) * e;
+
+      const pulse = 0.5 + 0.5 * Math.sin(clockT * 3.2);
+      ctx.strokeStyle = `rgba(255, 197, 61, ${(42 + 30 * pulse) / 255})`;
+      ctx.lineWidth = thickness + 4;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#ffc53d";
+      ctx.lineWidth = Math.max(3, thickness - 2);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      ctx.save();
+      ctx.strokeStyle = "#0d1322";
+      ctx.lineWidth = Math.max(2, thickness - 5);
+      ctx.setLineDash([8, 13]);
+      ctx.lineDashOffset = -clockT * 35.0 * dir;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function renderNode(node) {
+      const e = Math.max(0, Math.min(1, node.energy));
+      const w = node.w, h = node.h;
+      const x = node.x - w / 2;
+      const y = node.y - h / 2;
+
+      if (e > 0.02) {
+        const pulse = 0.5 + 0.5 * Math.sin(clockT * 2.4 + node.x * 0.02);
+        ctx.strokeStyle = `rgba(255, 197, 61, ${(46 + 18 * pulse) * e / 255})`;
+        ctx.lineWidth = 7;
+        roundRect(ctx, x - 3, y - 3, w + 6, h + 6, 14, false, true);
+      }
+
+      const bodyColor = mixColor("#151e33", "#243158", e);
+      const edgeColor = mixColor("#2b3a5c", "#ffc53d", e);
+      ctx.fillStyle = bodyColor;
+      ctx.strokeStyle = edgeColor;
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, x, y, w, h, 12, true, true);
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      if (node.compact) {
+        ctx.fillStyle = "#9aa7c2";
+        ctx.font = "bold 11px 'Segoe UI', sans-serif";
+        ctx.fillText(node.label, node.x, node.y);
+
+        const dotCol = mixColor("#3a4a6e", "#ffc53d", e);
+        ctx.fillStyle = dotCol;
+        ctx.beginPath();
+        ctx.arc(x + w - 9, y + 9, 3.0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = "#e9eef8";
+        ctx.font = "bold 12px 'Segoe UI', sans-serif";
+        const parts = node.label.split("\n");
+        ctx.fillText(parts[0], node.x, y + 22);
+        ctx.fillText(parts[1] || "", node.x, y + 40);
+
+        ctx.strokeStyle = "rgba(43, 58, 92, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + 14, y + h - 27);
+        ctx.lineTo(x + w - 14, y + h - 27);
+        ctx.stroke();
+
+        const isEn = (e > 0.5);
+        const statusText = isEn ? "ENERJİLİ" : "PASİF";
+        const statusCol = mixColor("#5c6a8a", "#ffc53d", e);
+
+        ctx.font = "bold 10.5px 'Segoe UI', sans-serif";
+        ctx.fillStyle = statusCol;
+        ctx.fillText((isEn ? "● " : "○ ") + statusText, node.x, y + h - 13.5);
+      }
+    }
+
+    function renderSwitch(sw) {
+      const a = Math.max(0, Math.min(1, sw.anim));
+      const leverCol = mixColor("#ff6b6b", "#3ddc97", a);
+
+      if (sw.flash > 0.01) {
+        const blink = 0.55 + 0.45 * Math.sin(clockT * 18.0);
+        ctx.strokeStyle = `rgba(255, 107, 107, ${(200 * sw.flash * blink) / 255})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, 25, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.translate(sw.x, sw.y);
+      const scalePop = 1.0 + 0.12 * sw.pulse;
+      ctx.scale(scalePop, scalePop);
+
+      const edgeCol = mixColor("#33415f", leverCol, Math.max(0.35 * a, 0.6 * sw.hover));
+      ctx.fillStyle = "#111a2e";
+      ctx.strokeStyle = edgeCol;
+      ctx.lineWidth = 1.6 + 0.9 * sw.hover;
+      ctx.beginPath();
+      ctx.arc(0, 0, 19, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      let fixed, tipClosed, tipOpen, contacts;
+      if (sw.isVertical) {
+        fixed = { x: 0, y: 10 };
+        tipClosed = { x: 0, y: -10 };
+        tipOpen = { x: -9, y: -6 };
+        contacts = [{ x: 0, y: -10 }, { x: 0, y: 10 }];
+      } else {
+        fixed = { x: -10, y: 0 };
+        tipClosed = { x: 10, y: 0 };
+        tipOpen = { x: 6, y: -9 };
+        contacts = [{ x: -10, y: 0 }, { x: 10, y: 0 }];
+      }
+
+      ctx.fillStyle = "#46567c";
+      contacts.forEach(c => {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      const tip = {
+        x: tipOpen.x + (tipClosed.x - tipOpen.x) * a,
+        y: tipOpen.y + (tipClosed.y - tipOpen.y) * a
+      };
+
+      ctx.strokeStyle = `rgba(${hexToRgb(leverCol.startsWith('rgb') ? rgbToHex(leverCol) : leverCol).r}, ${hexToRgb(leverCol.startsWith('rgb') ? rgbToHex(leverCol) : leverCol).g}, ${hexToRgb(leverCol.startsWith('rgb') ? rgbToHex(leverCol) : leverCol).b}, 0.4)`;
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(fixed.x, fixed.y);
+      ctx.lineTo(tip.x, tip.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = leverCol;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(fixed.x, fixed.y);
+      ctx.lineTo(tip.x, tip.y);
+      ctx.stroke();
+
+      ctx.restore();
+
+      renderSwitchPill(sw, leverCol);
+    }
+
+    function rgbToHex(rgb) {
+      const parts = rgb.match(/\d+/g);
+      if (!parts || parts.length < 3) return "#ffffff";
+      return "#" + parts.slice(0, 3).map(p => parseInt(p).toString(16).padStart(2, "0")).join("");
+    }
+
+    function renderSwitchPill(sw, leverCol) {
+      const lines = sw.name.split("\n");
+      const font = "bold 11px 'Segoe UI', sans-serif";
+      ctx.font = font;
+
+      let maxW = 30;
+      lines.forEach(l => {
+        const w = ctx.measureText(l).width;
+        if (w > maxW) maxW = w;
+      });
+
+      const pillW = maxW + 36;
+      const pillH = 15 * lines.length + 9;
+
+      let pillX, pillY;
+      if (sw.labelSide === "right") {
+        pillX = sw.x + 28;
+        pillY = sw.y - pillH / 2;
+      } else if (sw.labelSide === "left") {
+        pillX = sw.x - 28 - pillW;
+        pillY = sw.y - pillH / 2;
+      } else if (sw.labelSide === "top") {
+        pillX = sw.x - pillW / 2;
+        pillY = sw.y - (31 + pillH);
+      } else {
+        pillX = sw.x - pillW / 2;
+        pillY = sw.y + 31;
+      }
+
+      ctx.fillStyle = "rgba(13, 19, 34, 0.88)";
+      ctx.strokeStyle = "rgba(31, 43, 71, 0.82)";
+      ctx.lineWidth = 1;
+      roundRect(ctx, pillX, pillY, pillW, pillH, 7, true, true);
+
+      ctx.fillStyle = leverCol;
+      ctx.beginPath();
+      ctx.arc(pillX + 12, pillY + pillH / 2, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#9aa7c2";
+      ctx.font = font;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+
+      if (lines.length === 1) {
+        ctx.fillText(lines[0], pillX + 21, pillY + pillH / 2);
+      } else {
+        ctx.fillText(lines[0], pillX + 21, pillY + pillH / 2 - 7);
+        ctx.fillText(lines[1], pillX + 21, pillY + pillH / 2 + 7);
+      }
+    }
+
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    // =========================================================================
+    // 6. FARE & DOKUNMA ETKİLEŞİMLERİ (PAN, ZOOM, SEÇİM)
+    // =========================================================================
+    function getVirtualPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.clientX !== undefined ? e.clientX : e.touches[0].clientX;
+      const clientY = e.clientY !== undefined ? e.clientY : e.touches[0].clientY;
+      return {
+        x: (clientX - rect.left - panX) / scale,
+        y: (clientY - rect.top - panY) / scale
+      };
+    }
+
+    function hitTestSwitch(pos) {
+      for (let sw of allSwitches) {
+        const d = Math.hypot(pos.x - sw.x, pos.y - sw.y);
+        if (d <= 22) return sw;
+
+        const lines = sw.name.split("\n");
+        const pillW = 120;
+        const pillH = 15 * lines.length + 9;
+
+        let pillX, pillY;
+        if (sw.labelSide === "right") { pillX = sw.x + 28; pillY = sw.y - pillH / 2; }
+        else if (sw.labelSide === "left") { pillX = sw.x - 28 - pillW; pillY = sw.y - pillH / 2; }
+        else if (sw.labelSide === "top") { pillX = sw.x - pillW / 2; pillY = sw.y - (31 + pillH); }
+        else { pillX = sw.x - pillW / 2; pillY = sw.y + 31; }
+
+        if (pos.x >= pillX && pos.x <= pillX + pillW && pos.y >= pillY && pos.y <= pillY + pillH) {
+          return sw;
+        }
+      }
+      return null;
+    }
+
+    canvas.addEventListener("click", e => {
+      const pos = getVirtualPos(e);
+      const sw = hitTestSwitch(pos);
+      if (sw) {
+        requestToggle(sw);
+      }
+    });
+
+    canvas.addEventListener("mousemove", e => {
+      const pos = getVirtualPos(e);
+      const hit = hitTestSwitch(pos);
+      canvas.style.cursor = hit ? "pointer" : (isPanning ? "grabbing" : "grab");
+
+      allSwitches.forEach(sw => sw._hovering = (sw === hit));
+
+      if (isPanning) {
+        panX = e.clientX - startPanX;
+        panY = e.clientY - startPanY;
+        userView = true;
+      }
+    });
+
+    canvas.addEventListener("mousedown", e => {
+      if (e.button === 0) {
+        const pos = getVirtualPos(e);
+        if (!hitTestSwitch(pos)) {
+          isPanning = true;
+          startPanX = e.clientX - panX;
+          startPanY = e.clientY - panY;
+        }
+      }
+    });
+
+    window.addEventListener("mouseup", () => isPanning = false);
+
+    canvas.addEventListener("wheel", e => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+      const total = scale * factor;
+      if (total < 0.30 || total > 5.0) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      panX = mouseX - (mouseX - panX) * factor;
+      panY = mouseY - (mouseY - panY) * factor;
+      scale = total;
+      userView = true;
+    }, { passive: false });
+
+    canvas.addEventListener("dblclick", () => resetFit());
+
+    // =========================================================================
+    // 7. BAŞLATMA
+    // =========================================================================
+    resizeCanvas();
+    resetFit();
+    updateSimulation();
+    animate();
+  </script>
 </body>
 </html>
